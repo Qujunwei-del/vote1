@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>扫码投票程序</title>
+    <!-- 引入二维码生成库 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft Yahei", sans-serif;
+        }
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        h2 {
+            color: #444;
+            margin: 20px 0 15px;
+            font-size: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 8px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .option-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .option-item input {
+            flex: 1;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .vote-option {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .vote-option:hover {
+            background-color: #f8f9fa;
+        }
+        .vote-option.selected {
+            background-color: #e7f3ff;
+            border-color: #007bff;
+        }
+        .result-bar {
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .result-progress {
+            height: 100%;
+            background-color: #007bff;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+        .result-item {
+            margin-bottom: 15px;
+        }
+        .result-text {
+            display: flex;
+            justify-content: space-between;
+            color: #333;
+        }
+        .hidden {
+            display: none;
+        }
+        .msg {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .msg.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .msg.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        /* 二维码样式 */
+        .qrcode-container {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        #qrcode {
+            display: inline-block;
+            margin: 0 auto;
+        }
+        .qrcode-tip {
+            color: #666;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .share-btn {
+            background-color: #28a745;
+            margin-top: 10px;
+        }
+        .share-btn:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <!-- 投票创建区域 -->
+    <div class="container" id="create-section">
+        <h1>创建新投票</h1>
+        <div class="form-group">
+            <label for="vote-title">投票标题</label>
+            <input type="text" id="vote-title" placeholder="请输入投票标题，例如：最喜欢的编程语言">
+        </div>
+        <div class="form-group">
+            <label>投票选项（至少2个）</label>
+            <div id="options-container">
+                <div class="option-item">
+                    <input type="text" class="vote-option-input" placeholder="选项1">
+                </div>
+                <div class="option-item">
+                    <input type="text" class="vote-option-input" placeholder="选项2">
+                </div>
+            </div>
+            <button type="button" id="add-option">+ 添加选项</button>
+        </div>
+        <button type="button" id="start-vote">开始投票</button>
+    </div>
+
+    <!-- 投票分享/二维码区域 -->
+    <div class="container hidden" id="share-section">
+        <h1>分享投票</h1>
+        <div class="msg success">
+            投票创建成功！扫码或点击下方链接参与投票
+        </div>
+        <div class="qrcode-container">
+            <div id="qrcode"></div>
+            <p class="qrcode-tip">扫码上方二维码进入投票</p>
+        </div>
+        <div class="form-group">
+            <label>投票链接</label>
+            <input type="text" id="vote-url" readonly>
+        </div>
+        <button type="button" id="copy-url" class="share-btn">复制链接</button>
+        <button type="button" id="go-vote">直接进入投票</button>
+    </div>
+
+    <!-- 投票参与区域 -->
+    <div class="container hidden" id="vote-section">
+        <h1 id="vote-display-title"></h1>
+        <div class="msg error hidden" id="vote-error"></div>
+        <div id="vote-options-container"></div>
+        <button type="button" id="submit-vote" disabled>提交投票</button>
+        <button type="button" id="view-result">查看结果</button>
+    </div>
+
+    <!-- 投票结果区域 -->
+    <div class="container hidden" id="result-section">
+        <h1 id="result-title"></h1>
+        <div id="result-container"></div>
+        <div class="result-text">
+            <span>总投票数：<span id="total-votes">0</span></span>
+        </div>
+        <button type="button" id="back-to-vote">返回投票</button>
+        <button type="button" id="reset-vote">重新创建投票</button>
+    </div>
+
+    <script>
+        // 全局变量
+        let selectedOption = null;
+        let voteData = {
+            id: '', // 投票唯一标识
+            title: "",
+            options: [],
+            votes: [],
+            votedUsers: []
+        };
+
+        // DOM元素
+        const createSection = document.getElementById('create-section');
+        const shareSection = document.getElementById('share-section');
+        const voteSection = document.getElementById('vote-section');
+        const resultSection = document.getElementById('result-section');
+        const voteTitleInput = document.getElementById('vote-title');
+        const optionsContainer = document.getElementById('options-container');
+        const addOptionBtn = document.getElementById('add-option');
+        const startVoteBtn = document.getElementById('start-vote');
+        const qrcodeEl = document.getElementById('qrcode');
+        const voteUrlInput = document.getElementById('vote-url');
+        const copyUrlBtn = document.getElementById('copy-url');
+        const goVoteBtn = document.getElementById('go-vote');
+        const voteDisplayTitle = document.getElementById('vote-display-title');
+        const voteOptionsContainer = document.getElementById('vote-options-container');
+        const submitVoteBtn = document.getElementById('submit-vote');
+        const viewResultBtn = document.getElementById('view-result');
+        const resultTitle = document.getElementById('result-title');
+        const resultContainer = document.getElementById('result-container');
+        const totalVotesEl = document.getElementById('total-votes');
+        const backToVoteBtn = document.getElementById('back-to-vote');
+        const resetVoteBtn = document.getElementById('reset-vote');
+        const voteErrorMsg = document.getElementById('vote-error');
+
+        // 生成唯一ID（用于标识投票）
+        function generateVoteId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        }
+
+        // 编码投票数据到URL
+        function encodeVoteDataToUrl(data) {
+            const baseUrl = window.location.href.split('?')[0];
+            const encodedData = btoa(JSON.stringify({
+                id: data.id,
+                title: data.title,
+                options: data.options
+            }));
+            return `${baseUrl}?vote=${encodedData}`;
+        }
+
+        // 从URL解码投票数据
+        function decodeVoteDataFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const encodedData = urlParams.get('vote');
+            if (!encodedData) return null;
+            
+            try {
+                const decodedData = JSON.parse(atob(encodedData));
+                return decodedData;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // 生成二维码
+        function generateQrcode(url) {
+            qrcodeEl.innerHTML = '';
+            new QRCode(qrcodeEl, {
+                text: url,
+                width: 200,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+        // 添加选项
+        addOptionBtn.addEventListener('click', () => {
+            const optionItem = document.createElement('div');
+            optionItem.className = 'option-item';
+            optionItem.innerHTML = `<input type="text" class="vote-option-input" placeholder="选项${optionsContainer.children.length + 1}">`;
+            optionsContainer.appendChild(optionItem);
+        });
+
+        // 开始投票（生成二维码和链接）
+        startVoteBtn.addEventListener('click', () => {
+            // 验证标题
+            const title = voteTitleInput.value.trim();
+            if (!title) {
+                alert('请输入投票标题');
+                return;
+            }
+
+            // 收集选项
+            const optionInputs = document.querySelectorAll('.vote-option-input');
+            const options = [];
+            optionInputs.forEach(input => {
+                const val = input.value.trim();
+                if (val) options.push(val);
+            });
+
+            // 验证选项数量
+            if (options.length < 2) {
+                alert('至少需要2个有效选项');
+                return;
+            }
+
+            // 初始化投票数据
+            voteData = {
+                id: generateVoteId(),
+                title: title,
+                options: options,
+                votes: new Array(options.length).fill(0),
+                votedUsers: []
+            };
+
+            // 保存到本地存储（以voteId为键）
+            localStorage.setItem(`vote_${voteData.id}`, JSON.stringify(voteData));
+
+            // 生成投票链接和二维码
+            const voteUrl = encodeVoteDataToUrl(voteData);
+            voteUrlInput.value = voteUrl;
+            generateQrcode(voteUrl);
+
+            // 切换到分享区域
+            createSection.classList.add('hidden');
+            shareSection.classList.remove('hidden');
+        });
+
+        // 复制投票链接
+        copyUrlBtn.addEventListener('click', () => {
+            voteUrlInput.select();
+            document.execCommand('copy');
+            alert('链接复制成功！');
+        });
+
+        // 直接进入投票
+        goVoteBtn.addEventListener('click', () => {
+            shareSection.classList.add('hidden');
+            voteSection.classList.remove('hidden');
+            voteDisplayTitle.textContent = voteData.title;
+            renderVoteOptions();
+        });
+
+        // 渲染投票选项
+        function renderVoteOptions() {
+            voteOptionsContainer.innerHTML = '';
+            voteData.options.forEach((option, index) => {
+                const optionEl = document.createElement('div');
+                optionEl.className = 'vote-option';
+                optionEl.dataset.index = index;
+                optionEl.textContent = option;
+
+                // 选项点击事件
+                optionEl.addEventListener('click', () => {
+                    // 移除其他选中状态
+                    document.querySelectorAll('.vote-option').forEach(el => {
+                        el.classList.remove('selected');
+                    });
+                    // 添加当前选中状态
+                    optionEl.classList.add('selected');
+                    selectedOption = index;
+                    submitVoteBtn.disabled = false;
+                    voteErrorMsg.classList.add('hidden');
+                });
+
+                voteOptionsContainer.appendChild(optionEl);
+            });
+        }
+
+        // 提交投票
+        submitVoteBtn.addEventListener('click', () => {
+            if (selectedOption === null) return;
+
+            // 检查是否已投票（用voteId+设备标识）
+            const deviceId = localStorage.getItem('deviceId') || generateVoteId();
+            localStorage.setItem('deviceId', deviceId);
+            const votedKey = `voted_${voteData.id}_${deviceId}`;
+
+            if (localStorage.getItem(votedKey)) {
+                voteErrorMsg.textContent = '你已经投过票了，不能重复投票！';
+                voteErrorMsg.classList.remove('hidden');
+                return;
+            }
+
+            // 从本地存储加载最新投票数据（防止多设备数据不一致）
+            const savedVoteData = JSON.parse(localStorage.getItem(`vote_${voteData.id}`) || JSON.stringify(voteData));
+            
+            // 更新投票数
+            savedVoteData.votes[selectedOption]++;
+            savedVoteData.votedUsers.push(votedKey);
+            voteData = savedVoteData;
+            
+            // 保存更新后的数据
+            localStorage.setItem(`vote_${voteData.id}`, JSON.stringify(voteData));
+            localStorage.setItem(votedKey, '1');
+
+            // 显示成功提示并跳转到结果页
+            voteErrorMsg.className = 'msg success';
+            voteErrorMsg.textContent = '投票成功！';
+            voteErrorMsg.classList.remove('hidden');
+            
+            setTimeout(() => {
+                viewResult();
+            }, 1000);
+        });
+
+        // 查看结果
+        viewResultBtn.addEventListener('click', viewResult);
+        backToVoteBtn.addEventListener('click', () => {
+            resultSection.classList.add('hidden');
+            voteSection.classList.remove('hidden');
+        });
+
+        function viewResult() {
+            // 加载最新投票数据
+            const savedVoteData = JSON.parse(localStorage.getItem(`vote_${voteData.id}`) || JSON.stringify(voteData));
+            voteData = savedVoteData;
+
+            // 切换到结果区域
+            voteSection.classList.add('hidden');
+            resultSection.classList.remove('hidden');
+            resultTitle.textContent = voteData.title;
+
+            // 计算总票数
+            const totalVotes = voteData.votes.reduce((sum, count) => sum + count, 0);
+            totalVotesEl.textContent = totalVotes;
+
+            // 渲染结果
+            resultContainer.innerHTML = '';
+            voteData.options.forEach((option, index) => {
+                const votes = voteData.votes[index];
+                const percentage = totalVotes > 0 ? ((votes / totalVotes) * 100).toFixed(1) : 0;
+
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item';
+                resultItem.innerHTML = `
+                    <div class="result-text">
+                        <span>${option}</span>
+                        <span>${votes}票 (${percentage}%)</span>
+                    </div>
+                    <div class="result-bar">
+                        <div class="result-progress" style="width: ${percentage}%"></div>
+                    </div>
+                `;
+
+                resultContainer.appendChild(resultItem);
+            });
+        }
+
+        // 重新创建投票
+        resetVoteBtn.addEventListener('click', () => {
+            // 清空当前投票数据
+            if (voteData.id) {
+                localStorage.removeItem(`vote_${voteData.id}`);
+                voteData.votedUsers.forEach(key => {
+                    localStorage.removeItem(key);
+                });
+            }
+            
+            // 重置状态
+            selectedOption = null;
+            voteTitleInput.value = '';
+            optionsContainer.innerHTML = `
+                <div class="option-item">
+                    <input type="text" class="vote-option-input" placeholder="选项1">
+                </div>
+                <div class="option-item">
+                    <input type="text" class="vote-option-input" placeholder="选项2">
+                </div>
+            `;
+
+            // 切换回创建区域
+            resultSection.classList.add('hidden');
+            shareSection.classList.add('hidden');
+            createSection.classList.remove('hidden');
+        });
+
+        // 页面加载时处理
+        window.addEventListener('load', () => {
+            // 检查URL是否包含投票数据（扫码/链接进入）
+            const decodedData = decodeVoteDataFromUrl();
+            if (decodedData) {
+                // 加载该投票的完整数据（包含票数）
+                const savedVoteData = localStorage.getItem(`vote_${decodedData.id}`);
+                if (savedVoteData) {
+                    voteData = JSON.parse(savedVoteData);
+                } else {
+                    // 如果是新设备，初始化票数
+                    voteData = {
+                        id: decodedData.id,
+                        title: decodedData.title,
+                        options: decodedData.options,
+                        votes: new Array(decodedData.options.length).fill(0),
+                        votedUsers: []
+                    };
+                }
+                
+                // 直接进入投票页面
+                createSection.classList.add('hidden');
+                shareSection.classList.add('hidden');
+                voteSection.classList.remove('hidden');
+                voteDisplayTitle.textContent = voteData.title;
+                renderVoteOptions();
+                return;
+            }
+
+            // 没有URL参数，正常显示创建页面
+        });
+    </script>
+</body>
+</html>
